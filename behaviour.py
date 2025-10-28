@@ -18,8 +18,9 @@ class Behaviour:
 
     def __init__(self, name = "Random Attack") -> None:
         self.name = name
+        self.log_messages: list[str] = []
     
-    def execute(self, actor: Character, battle: Battle) -> None:
+    def execute(self, actor: Character, battle: Battle) -> list[str]:
         """Execute the behaviour based on its name."""
 
         match self.name:
@@ -29,6 +30,8 @@ class Behaviour:
             
             case _:
                 self.random_attack(actor, battle)
+        
+        return self.log_messages
     
     def random_attack(self, actor: Character, battle: Battle) -> None:
         """Execute a random attack behaviour."""
@@ -41,4 +44,5 @@ class Behaviour:
         targets = [target for target in opposing if target.hp > 0]
         target = random.choice(targets)
         
-        actor.basic_attack.execute(actor, [target], battle)
+        self.log_messages.extend(actor.basic_attack.execute(actor, [target],
+                                                            battle))

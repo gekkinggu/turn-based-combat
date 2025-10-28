@@ -50,16 +50,18 @@ class Status:
     def __init__(self, name: str) -> None:
         self.name = name
 
+        # Defaults for undefined statuses
+        self.stack: int = 1
+        self.starting_stacks: int = 1
+        self.max_stacks: int = 1
+
+        self.duration: int = 3
+        self.applied_duration: int = 3
+        self.max_duration: int = 3
+
+        self.stat_modifiers: dict[str, float] = {}
+
         # For annotations
-        self.stack: int
-        self.starting_stacks: int
-        self.max_stacks: int
-
-        self.duration: int
-        self.applied_duration: int
-        self.max_duration: int
-
-        self.stat_modifiers: dict[str, float]
         self.patient: Character
 
         self.define()
@@ -77,20 +79,12 @@ class Status:
 
         with open("definitions/statuses.csv", newline="", encoding='utf-8'
                   ) as file:
-            library = list(csv.DictReader(file))
-
-            # When undefined, set to some default values
-            if self.name not in {row['name'] for row in library}:
-                print(f"{self} undefined")
-                self.starting_stacks = 1
-                self.max_stacks = 1
-                self.applied_duration = 3
-                self.max_duration = 3
-                self.stat_modifiers = {}
-                return
+            library = csv.DictReader(file)
             
+            name_found = False
             for row in library:
                 if self.name == row["name"]:
+                    name_found = True
                     self.starting_stacks = int(row["starting_stacks"])
                     self.max_stacks = int(row["max_stacks"])
                     self.applied_duration = int(row["applied_duration"])
@@ -100,6 +94,9 @@ class Status:
                     else:
                         self.stat_modifiers = {}
             
+            if not name_found:
+                print(f"Status {self.name} not defined")
+
             self.stack = self.starting_stacks
             self.duration = self.applied_duration
 
@@ -152,30 +149,29 @@ class Status:
 class Action:
     """Any action that can be performed in battle."""
 
-
     def __init__(self, name: str) -> None:
         self.name = name
 
-        # For annotations
-        self.type: str
-        self.potency: int
-        self.is_physical: bool
-        self.element: str
-        self.targetting: str
-        self.mp_cost: int
-        self.targets: list[Character]
-        self.modifiers: list[float]
+        # Defaults for undefined actions
+        self.type: str = "Damage Single"
+        self.potency: int = 100
+        self.is_physical: bool = True
+        self.element: str = "None"
+        self.targetting: str = "Single"
+        self.mp_cost: int = 0
+        self.status_for_actor: list[str] = []
+        self.status_for_target: list[str] = []
+        self.status_costs: dict[str, int] = {}
 
-        # More annotations
+        self.modifiers: list[float] = []
+        self.log_messages: list[str] = []
+
+        # For annotations
         self.actor: Character
         self.battle: Battle
         self.party: list[Character]
         self.enemies: list[Character]
-
-        # Status effects
-        self.status_for_actor: list[str] = []
-        self.status_for_target: list[str] = []
-        self.status_costs: dict[str, int] = {}
+        self.targets: list[Character]
 
         self.define()
 
@@ -187,16 +183,12 @@ class Action:
 
         with open("definitions/actions.csv", newline="", encoding='utf-8'
                   ) as file:
-            library = list(csv.DictReader(file))
-
-            real_name = None
-            if self.name not in {row['name'] for row in library}:
-                print(f"{self} undefined")
-                real_name = self.name
-                self.name = "Attack"
+            library = csv.DictReader(file)
             
+            name_found = False
             for row in library:
                 if self.name == row["name"]:
+                    name_found = True
                     self.type = row["type"]
                     self.potency = int(row["potency"])
                     self.is_physical = row["is_physical"].lower() == "true"
@@ -219,18 +211,14 @@ class Action:
                     else:
                         self.status_costs = {}
 
-            """The entire real_name thing is so that if an
-            action is undefined, it defaults to Attack
-            but still retains its original name for logging"""
-            if real_name:
-                self.name = real_name
+            if not name_found:
+               print(f"Action {self.name} not defined")
 
-    def execute(self,
-                actor: Character,
-                targets: list[Character],
-                battle: Battle
-                ) -> None:
-        """Execute the action in the context of a battle."""
+    def execute(self, actor: Character, targets: list[Character],
+                battle: Battle) -> list[str]:
+        """Execute the action in the context of a battle.
+        Returns log messages generated during execution."""
+        self.log_messages = [f"{actor} used {self}!"]
 
         self.actor = actor
         self.targets = targets
@@ -262,11 +250,10 @@ class Action:
         self.statusing()
         self.apply_costs(battle.inventory)
 
-    def damage_single(self,
-                      target: Character,
-                      flavor_text: str | None = None,
-                      custom_potency: int | None = None
-                      ) -> None:
+        return self.log_messages
+
+    def damage_single(self, target: Character, flavor_text: str | None = None,
+                      custom_potency: int | None = None) -> None:
         """Damage a single target."""
 
         if flavor_text:
@@ -283,10 +270,8 @@ class Action:
         
         self.dealDamage(damage, target)
 
-    def damage_all(self,
-                   flavor_text: str | None = None,
-                   custom_potency: int | None = None
-                   ) -> None:
+    def damage_all(self, flavor_text: str | None = None,
+                   custom_potency: int | None = None) -> None:
         """Damage all targets."""
 
         if flavor_text:
@@ -295,11 +280,8 @@ class Action:
         for target in self.targets:
             self.damage_single(target, custom_potency = custom_potency)
 
-    def heal_single(self,
-                    target: Character,
-                    flavor_text: str | None = None,
-                    custom_potency: int | None = None
-                    ) -> None:
+    def heal_single(self, target: Character, flavor_text: str | None = None,
+                    custom_potency: int | None = None) -> None:
         """Heal a single target."""
 
         if flavor_text:
@@ -310,10 +292,8 @@ class Action:
         else:
             self.dealHeal(self.healFormula(self.actor.magic), target)
 
-    def heal_all(self,
-                 flavor_text: str | None = None,
-                 custom_potency: int | None = None
-                 ) -> None:
+    def heal_all(self, flavor_text: str | None = None,
+                 custom_potency: int | None = None) -> None:
         """Heal all targets."""
         if flavor_text:
             pass
@@ -337,10 +317,7 @@ class Action:
             for target in self.targets:
                 self.apply_status(target, status)
 
-    def apply_status(self,
-                     patient: Character,
-                     status_name: str
-                     ) -> None:
+    def apply_status(self, patient: Character, status_name: str) -> None:
         """Apply a status to a character, reapplying if already present."""
 
         apply_me = None
@@ -403,11 +380,8 @@ class Action:
         
         return None
 
-    def damageFormula(self,
-                      attack: int,
-                      defense: int,
-                      custom_potency: int | None = None
-                      ) -> int:
+    def damageFormula(self, attack: int, defense: int,
+                      custom_potency: int | None = None) -> int:
         """Calculate damage based on attack, defense, and potency."""
         if custom_potency:
             damage = attack/(2**(defense/attack)) * (custom_potency/100)
@@ -427,7 +401,7 @@ class Action:
 
         if random.randint(1, 100) <= 15:
             self.modifiers.append(2)
-            # self.battle_log.print("Critical Hit!")
+            self.log_messages.append("A critical hit!")
 
         damage_temp = float(damage)
         for modifier in self.modifiers:
@@ -437,13 +411,9 @@ class Action:
         if damage > target.hp:
             damage = target.hp
         target.hp -= damage
-        # self.battle_log.print(f"{target} received {damage} damage")
-        # self.actor.limitGain("Damage", damage)
-        # target.limitGain("Hurting", damage)
+        self.log_messages.append(f"{target} took {damage} damage!")
 
-    def healFormula(self,
-                    attack: int,
-                    custom_potency: int | None = None
+    def healFormula(self, attack: int, custom_potency: int | None = None
                     ) -> int:
         """Calculate healing based on magic and potency."""
         heal = attack/2 * (self.potency/100)
@@ -457,9 +427,7 @@ class Action:
         if target.hp + heal > target.hp_max:
             heal = target.hp_max - target.hp
         target.hp += heal
-        # self.battle_log.print(f"{target} recovered {heal} HP")
-        # self.actor.limitGain("Healing", heal)
-
+        self.log_messages.append(f"{target} healed {heal} HP!")
 
 class Limit(Action):
     pass

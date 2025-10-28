@@ -37,17 +37,34 @@ class Character:
         self.magic: int
         self.mdefense: int
         self.speed: int
-        self.ability: Command
-        self.abilities: list[Action]
-        self.spells: list[Action]
         self.level_modifier: float
-        self.base_stats: dict[str, int]
+
+        # Defaults for undefined characters
+        self.base_stats: dict[str, int] = {
+            "hp_max": 10000,
+            "mp_max": 100,
+            "strength": 100,
+            "defense": 100,
+            "magic": 100,
+            "mdefense": 100
+        }
+        self.affinities: dict[str, int] = {
+            "Fire": 1,
+            "Ice": 1,
+            "Lightning": 1,
+            "Water": 1,
+            "Wind": 1,
+            "Earth": 1,
+            "Neutral": 1
+        }
+        self.ability: Command = Command("Attack", [self.basic_attack])
+        self.abilities: list[Action] = []
+        self.spells: list[Action] = []
 
         # Battle related
         self.limit: int
         self.atb: int
         self.statuses: list[Status]
-        self.affinities: dict[str, int]
         self.commands: list[Command]
         self.pre_battle_stats: dict[str, int]
 
@@ -58,24 +75,9 @@ class Character:
 
     def define(self) -> None:
         """Define character stats and attributes."""
-        
-        # Default affinities
-        self.affinities = {
-            "Fire": 1,
-            "Ice": 1,
-            "Lightning": 1,
-            "Water": 1,
-            "Wind": 1,
-            "Earth": 1,
-            "Neutral": 1
-        }
 
         with open("definitions/battlers.csv", "r") as csvfile:
             reader = csv.DictReader(csvfile)
-
-            self.affinities = {}
-            self.abilities = []
-            self.spells = []
 
             character_found = False
             for row in reader:

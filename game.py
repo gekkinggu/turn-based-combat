@@ -9,7 +9,8 @@ from __future__ import annotations
 import pygame
 from typing import TYPE_CHECKING, Optional
 
-from battle import Battle, SelectingCommands, SelectingTieWinner, Victory, Loss, AITurn
+from battle import Battle, SelectingCommands, SelectingTieWinner, Victory
+from battle import Loss, AITurn
 from character import Character, Enemy
 from ui import BattleUI, SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -27,7 +28,8 @@ class Game:
         self.battle_ui: Optional[BattleUI] = None
         self.in_battle = False
         
-    def start_battle(self, party: list[Character], enemies: list[Character]) -> None:
+    def start_battle(self, party: list[Character], enemies: list[Character]
+                     ) -> None:
         """Initialize and start a battle."""
         self.battle = Battle(party, enemies)
         self.battle.preparation()
@@ -43,6 +45,9 @@ class Game:
         # Update battle logic
         self.battle.loop(dt)
         
+        while self.battle.log_messages:
+            self.battle_ui.add_log_message(self.battle.log_messages.pop(0))
+
         # Check for battle end
         if isinstance(self.battle.state, Victory):
             self.battle_ui.add_log_message("Victory! You defeated all enemies!")
@@ -139,13 +144,15 @@ def main():
             if game.battle:
                 outcome_text = game.battle.outcome if game.battle.outcome else "Battle Ended"
                 text_surf = font.render(outcome_text, True, (255, 255, 0))
-                text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+                text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2,
+                                                       SCREEN_HEIGHT // 2))
                 screen.blit(text_surf, text_rect)
                 
                 # Draw restart prompt
                 small_font = pygame.font.Font(None, 36)
                 prompt_surf = small_font.render("Press R to restart or Q to quit", True, (255, 255, 255))
-                prompt_rect = prompt_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 60))
+                prompt_rect = prompt_surf.get_rect(center=(SCREEN_WIDTH // 2,
+                                                           SCREEN_HEIGHT // 2 + 60))
                 screen.blit(prompt_surf, prompt_rect)
             
             pygame.display.flip()

@@ -543,12 +543,8 @@ class BattleUI:
             action = self.ui_state.selected_action
             targets = self.ui_state.selected_targets
             
-            # Log the action
-            target_names = ", ".join([t.name for t in targets])
-            self.add_log_message(f"{actor.name} uses {action.name} on {target_names}!")
-            
             # Execute the action
-            action.execute(actor, targets, self.battle)
+            self.battle.log_messages = action.execute(actor, targets, self.battle)
             
             # Reset UI state
             self.ui_state.reset()

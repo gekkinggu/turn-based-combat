@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 class BattleState:
     """Base class for battle states."""
+    def __init__(self):
+        pass
     def __repr__(self) -> str:
         return self.__class__.__name__
     def loop(self, battle, dt) -> None:
@@ -25,6 +27,8 @@ class BattleState:
 
 class Waiting(BattleState):
     """Handles ATB gauge filling and state transitions."""
+    def __init__(self):
+        super().__init__()
     def loop(self, battle: Battle, dt: int) -> None:
 
         if battle.ready_actors:
@@ -42,6 +46,8 @@ class Waiting(BattleState):
 
 class SpeedTie(BattleState):
     """Handles speed ties among battlers."""
+    def __init__(self):
+        super().__init__()
     def loop(self, battle: Battle, dt: float) -> None:
         
         if all(battler.is_controllable for battler in battle.ready_actors):
@@ -101,7 +107,7 @@ class AITurn(BattleState):
         self.action_executed = False
 
     def loop(self, battle: Battle, dt: float) -> None:
-        self.actor.behaviour.execute(self.actor, battle)
+        battle.log_messages = self.actor.behaviour.execute(self.actor, battle)
         self.action_executed = True
         battle.state = CheckingDeath()
 
@@ -122,6 +128,8 @@ class SelectingCommands(BattleState):
 
 class CheckingDeath(BattleState):
     """Check for any defeated battlers and handle end-of-turn logic."""
+    def __init__(self):
+        super().__init__()
     def loop(self, battle: Battle, dt: float) -> None:
         if any(battler.hp == 0 for battler in battle.battlers):
             battle.state = Burying()
@@ -131,6 +139,8 @@ class CheckingDeath(BattleState):
 
 class EndingTurn(BattleState):
     """End the current actor's turn and prepare for the next."""
+    def __init__(self):
+        super().__init__()
     def loop(self, battle: Battle, dt: float) -> None:
         actor = battle.ready_actors.pop(0)
         actor.atb -= battle.READY_THRESHOLD
@@ -143,6 +153,8 @@ class EndingTurn(BattleState):
 
 class Burying(BattleState):
     """Handle defeated battlers and check for battle outcome."""
+    def __init__(self):
+        super().__init__()
     def loop(self, battle: Battle, dt: float) -> None:
         for battler in battle.battlers:
             if battler.hp == 0:
@@ -159,12 +171,16 @@ class Burying(BattleState):
 
 class Victory(BattleState):
     """Handle victory state."""
+    def __init__(self):
+        super().__init__()
     def loop(self, battle: Battle, dt: float) -> None:
         battle.outcome = "Victory"
 
 
 class Loss(BattleState):
     """Handle loss state."""
+    def __init__(self):
+        super().__init__()
     def loop(self, battle: Battle, dt: float) -> None:
         battle.outcome = "Defeat"
 
@@ -175,9 +191,7 @@ class Battle:
     inventory: list[Item] = []
     READY_THRESHOLD = 296
 
-    def __init__(self,
-                 party: list[Character],
-                 enemies: list[Character],
+    def __init__(self, party: list[Character], enemies: list[Character],
                  can_run = True) -> None:
         
         self.party = party
@@ -191,6 +205,7 @@ class Battle:
 
         self.state: BattleState = Waiting()
         self.prev_state: BattleState | None = None
+        self.log_messages: list[str] = []
 
     def preparation(self) -> None:
         """Prepare for battle."""
