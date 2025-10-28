@@ -10,14 +10,13 @@ import csv
 from typing import TYPE_CHECKING
 
 from action_core import Command, Action
-from behaviour_core import Behaviour
+from behaviour import Behaviour
 
 if TYPE_CHECKING:
     from action_core import Status
 
 class Character:
     """Character class representing a game character."""
-
 
     def __init__(self, name: str, level: int) -> None:
         
@@ -54,10 +53,8 @@ class Character:
 
         self.define()
 
-
     def __repr__(self) -> str:
         return self.name
-
 
     def define(self) -> None:
         """Define character stats and attributes."""
@@ -122,13 +119,11 @@ class Character:
         self.hp = self.hp_max
         self.mp = self.mp_max
     
-
     def level_up(self) -> None:
         """Level up character stats based on level modifier."""
         self.level_modifier = (self.level**2) / 10000
         for stat, value in self.base_stats.items():
             setattr(self, stat, int(value * self.level_modifier))
-
 
     def prepare_for_battle(self) -> None:
         """Prepare character for battle."""
@@ -150,12 +145,10 @@ class Character:
             'speed' : self.speed
         }
     
-
     def reset_stats(self) -> None:
         """Reset character stats to pre-battle values."""
         for stat, value in self.pre_battle_stats.items():
             setattr(self, stat, value)
-    
 
     def rest(self) -> None:
         """Restore character's HP to maximum."""

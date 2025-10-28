@@ -10,14 +10,13 @@ import csv
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from character_core import Character
+    from character import Character
     from battle import Battle
-    from item_core import Item
+    from item import Item
 
 
 class Command:
     """A command contains one or more actions."""
-
 
     def __init__(self, name: str, actions: list[Action], is_single = False
                  ) -> None:
@@ -27,10 +26,8 @@ class Command:
         # single action rather than open a menu
         self.is_single = is_single
 
-
     def __repr__(self) -> str:
         return self.name
-
 
     def __getitem__(self, index) -> Action | list[Action] | None:
         # Support slicing and integer indexing;
@@ -41,7 +38,6 @@ class Command:
             return self.actions[index]
         except (IndexError, TypeError):
             return None
-
 
     def __len__(self) -> int:
         return len(self.actions)
@@ -183,10 +179,8 @@ class Action:
 
         self.define()
 
-
     def __repr__(self) -> str:
         return self.name
-
 
     def define(self) -> None:
         """Define action attributes from CSV file."""
@@ -231,7 +225,6 @@ class Action:
             if real_name:
                 self.name = real_name
 
-
     def execute(self,
                 actor: Character,
                 targets: list[Character],
@@ -268,8 +261,6 @@ class Action:
         
         self.statusing()
         self.apply_costs(battle.inventory)
-        print(f"{self.actor} used {self.name} at {self.targets}")
-
 
     def damage_single(self,
                       target: Character,
@@ -292,7 +283,6 @@ class Action:
         
         self.dealDamage(damage, target)
 
-
     def damage_all(self,
                    flavor_text: str | None = None,
                    custom_potency: int | None = None
@@ -304,7 +294,6 @@ class Action:
 
         for target in self.targets:
             self.damage_single(target, custom_potency = custom_potency)
-
 
     def heal_single(self,
                     target: Character,
@@ -321,7 +310,6 @@ class Action:
         else:
             self.dealHeal(self.healFormula(self.actor.magic), target)
 
-
     def heal_all(self,
                  flavor_text: str | None = None,
                  custom_potency: int | None = None
@@ -332,7 +320,6 @@ class Action:
         
         for target in self.targets:
             self.heal_single(target, custom_potency = custom_potency)
-
 
     def statusing(self) -> None:
         """Apply statuses to actor and target(s)."""
@@ -350,7 +337,6 @@ class Action:
             for target in self.targets:
                 self.apply_status(target, status)
 
-
     def apply_status(self,
                      patient: Character,
                      status_name: str
@@ -365,7 +351,6 @@ class Action:
             apply_me.reapply()
         else:
             patient.statuses.append(Status(status_name))
-
 
     def check_costs(self, actor: Character) -> str | None:
         """Check if the actor can afford the costs of
@@ -387,7 +372,6 @@ class Action:
                     return f"Need {stack} more {name}"
         
         return None
-
 
     def apply_costs(self, inventory: list[Item]) -> str | None:
         """Apply the costs of the action to the actor and inventory.
@@ -419,7 +403,6 @@ class Action:
         
         return None
 
-
     def damageFormula(self,
                       attack: int,
                       defense: int,
@@ -431,7 +414,6 @@ class Action:
         else:
             damage = attack/(2**(defense/attack)) * (self.potency/100)
         return int(damage)
-
 
     def dealDamage(self, damage: int, target: Character) -> None:
         """Apply damage to the target,
@@ -459,7 +441,6 @@ class Action:
         # self.actor.limitGain("Damage", damage)
         # target.limitGain("Hurting", damage)
 
-
     def healFormula(self,
                     attack: int,
                     custom_potency: int | None = None
@@ -470,7 +451,6 @@ class Action:
             heal = attack/2 * (custom_potency/100)
         heal = heal * random.randint(85,115)/100
         return int(heal)
-
 
     def dealHeal(self, heal: int, target: Character) -> None:
         """Apply healing to the target."""

@@ -10,8 +10,8 @@ import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from character_core import Character
-    from item_core import Item
+    from character import Character
+    from item import Item
 
 
 class BattleState:
@@ -26,11 +26,14 @@ class BattleState:
 class Waiting(BattleState):
     """Handles ATB gauge filling and state transitions."""
     def loop(self, battle: Battle, dt: int) -> None:
+
         if battle.ready_actors:
             if len(battle.ready_actors) > 1:
                 battle.state = SpeedTie()
             else:
                 battle.state = PrepareActor(battle.ready_actors[0])
+            return
+            
         for battler in battle.battlers:
             battler.atb += battler.speed * dt * 5
             if battler.atb >= battle.READY_THRESHOLD:
@@ -95,9 +98,11 @@ class AITurn(BattleState):
     def __init__(self, actor: Character) -> None:
         super().__init__()
         self.actor = actor
+        self.action_executed = False
 
     def loop(self, battle: Battle, dt: float) -> None:
         self.actor.behaviour.execute(self.actor, battle)
+        self.action_executed = True
         battle.state = CheckingDeath()
 
 
@@ -106,10 +111,13 @@ class SelectingCommands(BattleState):
     def __init__(self, actor: Character) -> None:
         super().__init__()
         self.actor = actor
+        self.action_selected = False
 
     def loop(self, battle: Battle, dt: float) -> None:
-        self.actor.behaviour.execute(self.actor, battle)
-        battle.state = CheckingDeath()
+        # This state now waits for UI input
+        # The UI system will set action_selected to True when ready
+        if self.action_selected:
+            battle.state = CheckingDeath()
 
 
 class CheckingDeath(BattleState):
@@ -167,7 +175,6 @@ class Battle:
     inventory: list[Item] = []
     READY_THRESHOLD = 296
 
-
     def __init__(self,
                  party: list[Character],
                  enemies: list[Character],
@@ -185,7 +192,6 @@ class Battle:
         self.state: BattleState = Waiting()
         self.prev_state: BattleState | None = None
 
-
     def preparation(self) -> None:
         """Prepare for battle."""
 
@@ -193,20 +199,23 @@ class Battle:
             battler.prepare_for_battle()
             battler.atb = random.randint(0,15)
     
-
     def conclude(self) -> None:
         """Conclude the battle."""
         for battler in self.battlers:
             battler.reset_stats()
-    
 
     def loop(self, dt: float) -> None:
         """Update the battle state."""
+        
+        # if self.state != self.prev_state:
+        #     print(f"Current State: {self.state}")
+        #     self.prev_state = self.state
+        
         self.state.loop(self, dt)
-
+        
 
 if __name__ == "__main__":
-    from character_core import Character, Enemy
+    from character import Character, Enemy
 
     warrior = Character("Warrior", 50)
     mage = Enemy("Mage", 50)

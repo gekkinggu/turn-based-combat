@@ -10,7 +10,7 @@ import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from character_core import Character
+    from character import Character
     from battle import Battle
 
 class Behaviour:
