@@ -1,0 +1,6 @@
+name,type,potency,is_physical,element,targetting,mp_cost,status_for_actor,status_for_target,status_costs
+Attack,Damage Single,100,True,Neutral,Single,0,,,
+Power Strike,Damage Single,150,True,Neutral,Single,0,,,
+Cure,Heal Single,150,False,Neutral,Single,5,,,
+Fire,Damage Single,120,False,Fire,Single,5,,,
+Potion,Item Heal,150,False,Neutral,Single,0,,,

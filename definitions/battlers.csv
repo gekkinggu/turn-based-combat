@@ -1,0 +1,11 @@
+name,hp,mp,strength,defense,magic,mdefense,speed,ability,abilities,spells,affinities
+Warrior,150,30,18,15,5,8,10,Power Strike,,,
+Mage,80,120,6,5,20,18,8,Fireball,,,
+Rogue,100,50,14,8,10,10,18,Quick Attack,,,
+Paladin,140,60,15,18,12,15,9,Heal,,,
+Berserker,180,20,22,10,3,5,7,Rage,,,
+Cleric,90,100,8,10,15,20,11,Divine Light,,,
+Archer,110,40,12,7,8,9,16,Aimed Shot,,,
+Necromancer,85,130,5,6,22,16,8,Death Bolt,,,
+Tank,200,25,10,22,4,12,6,Shield Bash,,,
+Assassin,95,45,16,6,9,8,20,Backstab,,,
