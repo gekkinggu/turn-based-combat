@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from character import Character
     from item import Item
+    from action_core import Action
 
 
 class BattleState:
@@ -88,17 +89,28 @@ class PrepareActor(BattleState):
         else:
             battle.state = AITurn(self.actor)
 
+
 class ControlledTurn(BattleState):
     """Handles command selection for a controllable character."""
     def __init__(self, actor: Character) -> None:
         super().__init__()
         self.actor = actor
-        self.action_selected = False
+        # self.action_selected = False
+
+        # These will be set by Game from UI
+        self.selected_action: Action | None = None
+        self.selected_targets: list[Character] = []
 
     def loop(self, battle: Battle, dt: float) -> None:
         # This state now waits for UI input
         # The UI system will set action_selected to True when ready
-        if self.action_selected:
+        # if self.action_selected:
+        #     battle.state = CheckingDeath()
+        
+        if self.selected_action and self.selected_targets:
+            battle.log_messages.extend(
+                self.selected_action.execute(
+                    self.actor, self.selected_targets, battle))
             battle.state = CheckingDeath()
 
 
@@ -107,13 +119,11 @@ class AITurn(BattleState):
     def __init__(self, actor: Character) -> None:
         super().__init__()
         self.actor = actor
-        self.action_executed = False
 
     def loop(self, battle: Battle, dt: float) -> None:
-        battle.log_messages = self.actor.behaviour.execute(self.actor, battle)
-        self.action_executed = True
+        battle.log_messages.extend(self.actor.behaviour.execute(
+                                    self.actor, battle))
         battle.state = CheckingDeath()
-
 
 
 class CheckingDeath(BattleState):

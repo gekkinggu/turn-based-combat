@@ -10,9 +10,9 @@ import pygame
 from typing import TYPE_CHECKING
 
 from battle import Battle, ControlledTurn, SelectingTieWinner, Victory
-from battle import Loss, AITurn
+from battle import Loss
 from character import Character, Enemy
-from ui import BattleUI, SCREEN_WIDTH, SCREEN_HEIGHT
+from ui_copy import BattleUI, SCREEN_WIDTH, SCREEN_HEIGHT
 
 if TYPE_CHECKING:
     pass
@@ -65,17 +65,14 @@ class Game:
             actor = self.battle.state.actor
             
             # Initialize the command menu if not already done
-            if not self.battle_ui.ui_state.selected_command and not self.battle_ui.command_menu.items:
+            if not self.battle_ui.selected_command and not self.battle_ui.command_menu.items:
                 self.battle_ui.setup_command_menu(actor)
                 
-            # Handle input and check if action is complete
-            action_complete = self.battle_ui.handle_input(event, actor)
-            
-            if action_complete:
-                # Execute the selected action
-                self.battle_ui.execute_selected_action(actor)
-                # Signal that the action has been selected
-                self.battle.state.action_selected = True
+            # Handle input and check if action is complete            
+            if self.battle_ui.handle_input(event, actor):
+                # Signal back to Battle the selected action and targets
+                self.battle.state.selected_action = self.battle_ui.selected_action
+                self.battle.state.selected_targets = self.battle_ui.selected_targets
                 
         # Handle tie winner selection
         elif isinstance(self.battle.state, SelectingTieWinner):
