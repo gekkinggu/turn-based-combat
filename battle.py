@@ -88,15 +88,18 @@ class PrepareActor(BattleState):
         else:
             battle.state = AITurn(self.actor)
 
-
 class ControlledTurn(BattleState):
-    """Handles a controllable character's turn."""
+    """Handles command selection for a controllable character."""
     def __init__(self, actor: Character) -> None:
         super().__init__()
         self.actor = actor
+        self.action_selected = False
 
     def loop(self, battle: Battle, dt: float) -> None:
-        battle.state = SelectingCommands(self.actor)
+        # This state now waits for UI input
+        # The UI system will set action_selected to True when ready
+        if self.action_selected:
+            battle.state = CheckingDeath()
 
 
 class AITurn(BattleState):
@@ -111,19 +114,6 @@ class AITurn(BattleState):
         self.action_executed = True
         battle.state = CheckingDeath()
 
-
-class SelectingCommands(BattleState):
-    """Handles command selection for a controllable character."""
-    def __init__(self, actor: Character) -> None:
-        super().__init__()
-        self.actor = actor
-        self.action_selected = False
-
-    def loop(self, battle: Battle, dt: float) -> None:
-        # This state now waits for UI input
-        # The UI system will set action_selected to True when ready
-        if self.action_selected:
-            battle.state = CheckingDeath()
 
 
 class CheckingDeath(BattleState):
@@ -207,6 +197,8 @@ class Battle:
         self.prev_state: BattleState | None = None
         self.log_messages: list[str] = []
 
+        self.preparation()
+
     def preparation(self) -> None:
         """Prepare for battle."""
 
@@ -228,19 +220,3 @@ class Battle:
         
         self.state.loop(self, dt)
         
-
-if __name__ == "__main__":
-    from character import Character, Enemy
-
-    warrior = Character("Warrior", 50)
-    mage = Enemy("Mage", 50)
-
-    battle = Battle(party=[warrior], enemies=[mage])
-    battle.preparation()
-
-    while battle.outcome is None:
-        battle.loop(0.016)
-
-        if battle.state != battle.prev_state:
-            print(f"Current State: {battle.state}")
-            battle.prev_state = battle.state

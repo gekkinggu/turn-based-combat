@@ -7,9 +7,9 @@ Game module for the turn-based combat system with integrated UI.
 from __future__ import annotations
 
 import pygame
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from battle import Battle, SelectingCommands, SelectingTieWinner, Victory
+from battle import Battle, ControlledTurn, SelectingTieWinner, Victory
 from battle import Loss, AITurn
 from character import Character, Enemy
 from ui import BattleUI, SCREEN_WIDTH, SCREEN_HEIGHT
@@ -24,15 +24,14 @@ class Game:
     def __init__(self, screen: pygame.Surface) -> None:
         self.screen = screen
         self.clock = pygame.time.Clock()
-        self.battle: Optional[Battle] = None
-        self.battle_ui: Optional[BattleUI] = None
+        self.battle: Battle | None = None
+        self.battle_ui: BattleUI | None = None
         self.in_battle = False
         
     def start_battle(self, party: list[Character], enemies: list[Character]
                      ) -> None:
         """Initialize and start a battle."""
         self.battle = Battle(party, enemies)
-        self.battle.preparation()
         self.battle_ui = BattleUI(self.screen, self.battle)
         self.in_battle = True
         self.battle_ui.add_log_message("Battle started!")
@@ -61,8 +60,8 @@ class Game:
         if not self.battle or not self.battle_ui or not self.in_battle:
             return
             
-        # Only handle input during SelectingCommands state
-        if isinstance(self.battle.state, SelectingCommands):
+        # Only handle input during ControlledTurn state
+        if isinstance(self.battle.state, ControlledTurn):
             actor = self.battle.state.actor
             
             # Initialize the command menu if not already done
@@ -98,7 +97,7 @@ class Game:
             
         # Determine current actor for UI display
         current_actor = None
-        if isinstance(self.battle.state, SelectingCommands):
+        if isinstance(self.battle.state, ControlledTurn):
             current_actor = self.battle.state.actor
             
         self.battle_ui.draw(current_actor)
