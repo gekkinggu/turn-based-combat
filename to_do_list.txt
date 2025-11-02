@@ -1,0 +1,2 @@
+1. Inventory should belong to each actor rather than battle. In preparation, set each actor to have their inventory reference the same Inventory object which belongs to the player/savefile. Come up with an easy way to set up enemy inventories.
+2. Handle 
