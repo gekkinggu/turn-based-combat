@@ -12,9 +12,8 @@ from typing import TYPE_CHECKING
 from battle import Battle, ControlledTurn, WaitingForTie, Victory
 from battle import Loss
 from character import Character, Enemy
-from ui import BattleUI, SelectionCompleted, SelectingTieWinner
+from ui import BattleUI, SelectionFinished, SelectingCommand, SelectingTieWinner
 from ui import SCREEN_WIDTH, SCREEN_HEIGHT
-from ui_manager import UIManager
 
 if TYPE_CHECKING:
     pass
@@ -28,7 +27,6 @@ class Game:
         self.clock = pygame.time.Clock()
         self.battle: Battle | None = None
         self.battle_ui: BattleUI | None = None
-        self.ui_manager: UIManager | None = None
         self.in_battle = False
         
     def start_battle(self, party: list[Character], enemies: list[Character]
@@ -36,7 +34,6 @@ class Game:
         """Initialize and start a battle."""
         self.battle = Battle(party, enemies)
         self.battle_ui = BattleUI(self.screen, self.battle)
-        self.ui_manager = UIManager(self.battle_ui, self.battle)
         self.in_battle = True
         self.battle_ui.add_log_message("Battle started!")
         
@@ -47,7 +44,6 @@ class Game:
             
         # Update battle logic
         self.battle.loop(dt)
-        self.ui_manager.loop()
         
         while self.battle.log_messages:
             self.battle_ui.add_log_message(self.battle.log_messages.pop(0))
@@ -64,24 +60,38 @@ class Game:
         """Handle input during battle."""
         if not self.battle or not self.battle_ui or not self.in_battle:
             return
-            
+        
+        print("Handling battle input...")
+
         # Only handle input during ControlledTurn state
         if isinstance(self.battle.state, ControlledTurn):
             actor = self.battle.state.actor
             
+            # Initialize the command menu if not already done
+            if not self.battle_ui.state and not self.battle.state.action:
+                print("Initializing command menu...")
+                self.battle_ui.state = SelectingCommand(self.battle_ui)
+            
             self.battle_ui.handle_input(event, actor)
-            if isinstance(self.battle_ui.state, SelectionCompleted):
+            if isinstance(self.battle_ui.state, SelectionFinished):
                 self.battle.state.action = self.battle_ui.state.action
                 self.battle.state.targets = self.battle_ui.state.targets
+                self.battle_ui.state = None
+                print("Reset ui state")
+                return
                 
         # Handle tie winner selection
         elif isinstance(self.battle.state, WaitingForTie):
-            self.battle_ui.handle_input(event, actor=None)
-            if isinstance(self.battle_ui.state, SelectingTieWinner):
-                tie_winner = self.battle_ui.state.tie_winner
-                if tie_winner:
-                    self.battle.state.tie_winner = tie_winner
-
+            if not self.battle_ui.tie_menu.items:
+                self.battle_ui.setup_tie_menu(self.battle.state.people_in_tie)
+                self.battle_ui.state = SelectingTieWinner(self.battle.state.people_in_tie)
+                print("Tie menu set up")
+            self.battle_ui.handle_input(event, None)
+            if isinstance(self.battle_ui.state, SelectionFinished):
+                self.battle.state.tie_winner = self.battle_ui.state.tie_winner
+                self.battle_ui.tie_menu.items.clear()
+                print("Tie winner selected")
+                self.battle_ui.state = SelectingCommand(self.battle_ui)
                                      
     def draw_battle(self) -> None:
         """Draw the battle UI."""
@@ -136,6 +146,7 @@ def main():
             game.draw_battle()
 
             if game.battle_ui.prev_state != game.battle_ui.state:
+                print(f"UI State Changed: {game.battle_ui.state}")
                 game.battle_ui.prev_state = game.battle_ui.state
 
         else:

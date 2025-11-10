@@ -38,104 +38,26 @@ PANEL_PADDING = 10
 MENU_ITEM_HEIGHT = 40
 
 
-class SelectingState:
-    """Indicates the current selection state in the UI."""
-    def __init__(self):
-        pass
-    def __repr__(self) -> str:
-        return self.__class__.__name__
-    def on_cancel(self, ui: BattleUI) -> None:
-        """Handle cancel/back action."""
-        pass
-    def on_confirm(self, ui: BattleUI, actor: Character) -> None:
-        """Handle confirm/select action."""
-        pass
-    def on_navigate(self, ui: BattleUI, direction: int) -> None:
-        """Handle navigation (up/down) action."""
-        pass
-
-
-class SelectingCommand(SelectingState):
-    """State for selecting a command."""
-    def __init__(self):
-        super().__init__()
-    def on_cancel(self, ui):
-        pass
-    def on_confirm(self, ui, actor: Character):
-        selected = ui.command_menu.get_selected_item()
-        if selected and selected.enabled:
-
-            selected_command = selected.data
-            ui.selected_command = selected_command
-            if selected_command.is_single:
-                ui.selected_action = selected_command.actions[0]
-                ui.setup_target_menu(ui.selected_action, actor)
-                ui.selecting_state = SelectingTarget()
-            else:
-                ui.setup_action_menu(selected_command, actor)
-                ui.selecting_state = SelectingAction()
-    def on_navigate(self, ui, direction: int):
-        ui.command_menu.move_selection(direction)
-
-
-class SelectingAction(SelectingState):
-    """State for selecting an action."""
-    def __init__(self):
-        super().__init__()
-    def on_cancel(self, ui):
-        ui.selecting_state = SelectingCommand()
-    def on_confirm(self, ui, actor: Character):
-        selected = ui.action_menu.get_selected_item()
-        if selected and selected.enabled:
-            selected_action = selected.data
-            ui.selected_action = selected_action
-            ui.setup_target_menu(selected_action, actor)
-            ui.selecting_state = SelectingTarget()
-    def on_navigate(self, ui, direction: int):
-        ui.action_menu.move_selection(direction)    
+@dataclass
+class UIState:
+    """Stores the current UI selection state."""
+    selected_command: Command | None = None
+    selected_action: Action | None = None
+    selected_targets: list[Character] = None
+    menu_index: int = 0
+    submenu_index: int = 0
+    in_submenu: bool = False
+    targeting: bool = False
     
-
-class SelectingTarget(SelectingState):
-    """State for selecting targets."""
-    def __init__(self):
-        super().__init__()
-    def on_cancel(self, ui):
-        ui.selecting_state = SelectingAction()
-    def on_confirm(self, ui, actor: Character):
-        selected = ui.target_menu.get_selected_item()
-        if selected:
-            ui.selected_targets = [selected.data]
-            ui.selecting_state = SelectionFinished()
-    def on_navigate(self, ui, direction: int):
-        ui.target_menu.move_selection(direction)
-
-
-class SelectionFinished(SelectingState):
-    """State indicating selection is finished."""
-    def __init__(self):
-        super().__init__()
-
-
-# @dataclass
-# class UIState:
-#     """Stores the current UI selection state."""
-#     selected_command: Command | None = None
-#     selected_action: Action | None = None
-#     selected_targets: list[Character] = None
-#     menu_index: int = 0
-#     submenu_index: int = 0
-#     in_submenu: bool = False
-#     targeting: bool = False
-    
-#     def reset(self) -> None:
-#         """Reset the UI state."""
-#         self.selected_command = None
-#         self.selected_action = None
-#         self.selected_targets = []
-#         self.menu_index = 0
-#         self.submenu_index = 0
-#         self.in_submenu = False
-#         self.targeting = False
+    def reset(self) -> None:
+        """Reset the UI state."""
+        self.selected_command = None
+        self.selected_action = None
+        self.selected_targets = []
+        self.menu_index = 0
+        self.submenu_index = 0
+        self.in_submenu = False
+        self.targeting = False
 
 
 class Button:
@@ -266,10 +188,7 @@ class BattleUI:
         self.small_font = pygame.font.Font(None, 22)
         self.large_font = pygame.font.Font(None, 36)
         
-        self.selecting_state: SelectingState = SelectingCommand()
-        self.selected_command: Command | None = None
-        self.selected_action: Action | None = None
-        self.selected_targets: list[Character] = []
+        self.ui_state = UIState()
         
         # Create UI panels
         self.command_menu = Menu(
@@ -501,7 +420,7 @@ class BattleUI:
             
         self.target_menu.set_items(items)
         
-    def handle_input(self, event: pygame.event.Event, actor: Character):
+    def handle_input(self, event: pygame.event.Event, actor: Character) -> bool:
         """
         Handle user input for command selection.
         Returns True when a complete action is selected.
@@ -511,23 +430,86 @@ class BattleUI:
             
         # Cancel/Back
         if event.key == pygame.K_ESCAPE or event.key == pygame.K_BACKSPACE:
-            self.selecting_state.on_cancel(self)
+            if self.ui_state.targeting:
+                self.ui_state.targeting = False
+                self.ui_state.selected_targets = []
+                return False
+            elif self.ui_state.in_submenu:
+                self.ui_state.in_submenu = False
+                self.ui_state.selected_action = None
+                self.action_menu.selected_index = 0
+                return False
+            else:
+                # Can't cancel at command level
+                return False
                 
         # Navigation
         if event.key == pygame.K_UP or event.key == pygame.K_w:
-            self.selecting_state.on_navigate(self, -1)
+            if self.ui_state.targeting:
+                self.target_menu.move_selection(-1)
+            elif self.ui_state.in_submenu:
+                self.action_menu.move_selection(-1)
+            else:
+                self.command_menu.move_selection(-1)
                 
         elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-            self.selecting_state.on_navigate(self, 1)
-
+            if self.ui_state.targeting:
+                self.target_menu.move_selection(1)
+            elif self.ui_state.in_submenu:
+                self.action_menu.move_selection(1)
+            else:
+                self.command_menu.move_selection(1)
+                
         # Confirm selection
         elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-            self.selecting_state.on_confirm(self, actor)
-
-        # Check if selection is finished
-        if isinstance(self.selecting_state, SelectionFinished):
-            self.selecting_state = SelectingCommand()  # Reset for next turn
-            return True  # Action selection complete
+            if self.ui_state.targeting:
+                # Target selected - execute action
+                selected = self.target_menu.get_selected_item()
+                if selected:
+                    self.ui_state.selected_targets = [selected.data]
+                    return True  # Action is complete
+                    
+            elif self.ui_state.in_submenu:
+                # Action selected - move to targeting
+                selected = self.action_menu.get_selected_item()
+                if selected and selected.enabled:
+                    self.ui_state.selected_action = selected.data
+                    
+                    # Check if action targets all
+                    if self.ui_state.selected_action.targetting in ["All Enemies", "All Allies", "All"]:
+                        # Auto-select all targets
+                        if self.ui_state.selected_action.targetting == "All Enemies":
+                            self.ui_state.selected_targets = [e for e in self.battle.enemies 
+                                                             if e not in self.battle.graveyard]
+                        elif self.ui_state.selected_action.targetting == "All Allies":
+                            self.ui_state.selected_targets = [p for p in self.battle.party 
+                                                             if p not in self.battle.graveyard]
+                        else:  # "All"
+                            self.ui_state.selected_targets = [b for b in self.battle.battlers 
+                                                             if b not in self.battle.graveyard]
+                        return True  # Action is complete
+                    else:
+                        # Move to target selection
+                        self.setup_target_menu(self.ui_state.selected_action, actor)
+                        self.ui_state.targeting = True
+                        
+            else:
+                # Command selected - move to action menu
+                selected = self.command_menu.get_selected_item()
+                if selected and selected.enabled:
+                    self.ui_state.selected_command = selected.data
+                    
+                    # If command is single-action (like Attack), execute immediately
+                    if self.ui_state.selected_command.is_single:
+                        self.ui_state.selected_action = self.ui_state.selected_command.actions[0]
+                        self.setup_target_menu(self.ui_state.selected_action, actor)
+                        self.ui_state.targeting = True
+                    else:
+                        # Show action submenu
+                        self.setup_action_menu(self.ui_state.selected_command, actor)
+                        self.ui_state.in_submenu = True
+                        
+        return False
 
     def draw(self, actor: Character | None = None) -> None:
         """Draw the complete battle UI."""
@@ -547,11 +529,22 @@ class BattleUI:
             # Draw appropriate menus based on state
             self.command_menu.draw(self.screen, self.font)
             
-            if isinstance(self.selecting_state, SelectingAction):
+            if self.ui_state.in_submenu or self.ui_state.targeting:
                 self.action_menu.draw(self.screen, self.font)
                 
-            if isinstance(self.selecting_state, SelectingTarget):
+            if self.ui_state.targeting:
                 self.target_menu.draw(self.screen, self.font)
                 
         pygame.display.flip()
-
+        
+    def execute_selected_action(self, actor: Character) -> None:
+        """Execute the currently selected action."""
+        if self.ui_state.selected_action and self.ui_state.selected_targets:
+            action = self.ui_state.selected_action
+            targets = self.ui_state.selected_targets
+            
+            # Execute the action
+            self.battle.log_messages = action.execute(actor, targets, self.battle)
+            
+            # Reset UI state
+            self.ui_state.reset()

@@ -1,5 +1,8 @@
 # python
-"""ui_new.py"""
+"""ui.py
+
+UI system for the turn-based combat game using pygame.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +12,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from character import Character
     from battle import Battle
-    from action_core import Action, Command
+    from action_core import Command, Action
 
 # Color constants
 BLACK = (0, 0, 0)
@@ -34,33 +37,45 @@ PANEL_PADDING = 10
 MENU_ITEM_HEIGHT = 40
 
 
-class UIState:
-    """Base class for UI states."""
+class SelectingState:
+    """Indicates the current selection state in the UI."""
     def __init__(self):
         pass
     def __repr__(self) -> str:
         return self.__class__.__name__
-    def on_cancel(self, ui: BattleUI, actor: Character, command: Command):
-        ui.state = ui.state_history[1]
-        if isinstance(ui.state, SelectingCommand):
-            ui.setup_command_menu(actor)
-        elif isinstance(ui.state, SelectingAction):
-            ui.setup_action_menu(command, actor)
-    def on_confirm(self):
+    def on_cancel(self, ui: BattleUI) -> None:
+        """Handle cancel/back action."""
         pass
-    def on_navigate(self, ui: BattleUI, direction: int):
-        ui.current_menu.move_selection(direction)
+    def on_confirm(self, ui: BattleUI, actor: Character) -> None:
+        """Handle confirm/select action."""
+        pass
+    def on_navigate(self, ui: BattleUI, direction: int) -> None:
+        """Handle navigation (up/down) action."""
+        pass
 
 
-class SelectingCommand(UIState):
-    """State for selecting a command."""
-    def __init__(self):
+class Preparation(SelectingState):
+    """State for preparing the UI."""
+    def __init__(self, ui: BattleUI, actor: Character):
         super().__init__()
-    def on_confirm(self, ui: BattleUI, actor: Character):
-        selected_item = ui.current_menu.get_selected_item()
-        if selected_item and selected_item.enabled:
-            command: Command = selected_item.data
-            ui.selected_command = command
+        ui.setup_command_menu(actor)
+        ui.state = SelectingCommand(ui)
+
+
+class SelectingCommand(SelectingState):
+    """State for selecting a command."""
+    def __init__(self, ui: BattleUI):
+        super().__init__()
+        # actor = ui.battle.state.actor
+        # ui.setup_command_menu(actor)
+        # print(f"SelectingCommand initialized for actor: {actor}")
+    def on_cancel(self, ui):
+        pass
+    def on_confirm(self, ui, actor: Character):
+        selected = ui.command_menu.get_selected_item()
+        if selected and selected.enabled:
+
+            command = selected.data
             if command.is_single:
                 action = command.actions[0]
                 ui.setup_target_menu(action, actor)
@@ -68,52 +83,72 @@ class SelectingCommand(UIState):
             else:
                 ui.setup_action_menu(command, actor)
                 ui.state = SelectingAction()
+    def on_navigate(self, ui, direction: int):
+        ui.command_menu.move_selection(direction)
 
 
-class SelectingAction(UIState):
+class SelectingAction(SelectingState):
     """State for selecting an action."""
     def __init__(self):
         super().__init__()
-    def on_confirm(self, ui: BattleUI, actor: Character):
-        selected_item = ui.current_menu.get_selected_item()
-        if selected_item and selected_item.enabled:
-            action: Action = selected_item.data
+    def on_cancel(self, ui):
+        ui.state = SelectingCommand(ui)
+    def on_confirm(self, ui, actor: Character):
+        selected = ui.action_menu.get_selected_item()
+        if selected and selected.enabled:
+            action = selected.data
             ui.setup_target_menu(action, actor)
             ui.state = SelectingTarget(action)
+    def on_navigate(self, ui, direction: int):
+        ui.action_menu.move_selection(direction)    
+    
 
-
-class SelectingTarget(UIState):
-    """State for selecting a target."""
+class SelectingTarget(SelectingState):
+    """State for selecting targets."""
     def __init__(self, action: Action):
         super().__init__()
         self.action = action
-    def on_confirm(self, ui: BattleUI, actor: Character):
-        selected_item = ui.current_menu.get_selected_item()
-        if selected_item and selected_item.enabled:
-            target: Character = selected_item.data
-            ui.state = SelectionCompleted(self.action, [target])
+    def on_cancel(self, ui):
+        ui.state = SelectingAction()
+    def on_confirm(self, ui, actor: Character):
+        selected = ui.target_menu.get_selected_item()
+        if selected:
+            ui.state = SelectionFinished(
+                action=self.action,
+                targets=[selected.data],
+                ui=ui)
+    def on_navigate(self, ui, direction: int):
+        ui.target_menu.move_selection(direction)
 
 
-class SelectionCompleted(UIState):
-    """State indicating selection is completed."""
+class SelectionFinished(SelectingState):
+    """State indicating selection is finished."""
     def __init__(self,
-                 action: Action,
-                 targets: list[Character]):
+                 action: Action | None = None,
+                 targets: list[Character] | None = None,
+                 tie_winner: Character | None = None,
+                 ui: BattleUI | None = None):
         super().__init__()
         self.action = action
         self.targets = targets
+        self.tie_winner = tie_winner
+        ui.command_menu.items.clear()
 
 
-class SelectingTieWinner(UIState):
-    def __init__(self):
+class SelectingTieWinner(SelectingState):
+    """State for selecting a tie winner."""
+    def __init__(self, tied_characters: list[Character]):
         super().__init__()
-        self.tie_winner: Character | None = None
-    def on_confirm(self, ui: BattleUI, actor: Character):
-        selected_item = ui.current_menu.get_selected_item()
-        if selected_item and selected_item.enabled:
-            self.tie_winner = selected_item.data
-    def on_navigate(self, ui: BattleUI, direction: int):
-        ui.current_menu.move_selection(direction)
+        self.tied_characters = tied_characters
+    def on_cancel(self, ui: BattleUI) -> None:
+        pass
+    def on_confirm(self, ui: BattleUI, actor: Character | None) -> None:
+        selected = ui.tie_menu.get_selected_item()
+        if selected:
+            tie_winner = selected.data
+            ui.state = SelectionFinished(tie_winner=tie_winner)
+    def on_navigate(self, ui: BattleUI, direction: int) -> None:
+        ui.tie_menu.move_selection(direction)
 
 
 class Button:
@@ -137,19 +172,17 @@ class Button:
         text_rect = text_surf.get_rect(center=self.rect.center)
         surface.blit(text_surf, text_rect)
         
-    # Unused for now
     def check_hover(self, pos: tuple[int, int]) -> None:
         """Check if the mouse is hovering over the button."""
         self.is_hovered = self.rect.collidepoint(pos)
-    
-    # Unused for now
+        
     def is_clicked(self, pos: tuple[int, int]) -> bool:
         """Check if the button was clicked."""
         return self.rect.collidepoint(pos)
 
 
 class MenuItem:
-    """A single item in a menu."""
+    """A selectable menu item."""
     
     def __init__(self, text: str, data: any = None, enabled: bool = True):
         self.text = text
@@ -158,7 +191,7 @@ class MenuItem:
 
 
 class Menu:
-    """A vertical menu of selectable items."""
+    """A menu that displays selectable items."""
     
     def __init__(self, rect: pygame.Rect, title: str = ""):
         self.rect = rect
@@ -235,129 +268,55 @@ class Menu:
             text_surf = font.render(item.text, True, color)
             surface.blit(text_surf, (item_rect.x + 5, item_rect.y + 10))
 
-        """Get the currently selected menu item."""
-        return self.items[self.selected_index]
-
 
 class BattleUI:
-    """Manages the battle user interface."""
-
+    """Main UI controller for the battle system."""
+    
     def __init__(self, screen: pygame.Surface, battle: Battle):
         self.screen = screen
         self.battle = battle
-
         self.font = pygame.font.Font(None, 28)
         self.small_font = pygame.font.Font(None, 22)
         self.large_font = pygame.font.Font(None, 36)
         
+        self.state: SelectingState = None
+        self.prev_state: SelectingState | None = None
+        
+        # Create UI panels
+        self.command_menu = Menu(
+            pygame.Rect(20, 450, 300, 230),
+            "Commands"
+        )
+        
+        self.action_menu = Menu(
+            pygame.Rect(340, 450, 300, 230),
+            "Actions"
+        )
+        
+        self.target_menu = Menu(
+            pygame.Rect(660, 450, 320, 230),
+            "Select Target"
+        )
+
+        self.tie_menu = Menu(
+            pygame.Rect(350, 300, 300, 200),
+            "Select Tie Winner"
+        )
+        
+        # Battle log
         self.log_messages: list[str] = []
         self.max_log_messages = 5
-
-        self.current_menu = Menu(pygame.Rect(50, 400, 300, 250), "Empty")
-
-        self.state: UIState = UIState()
-        self.prev_state: UIState | None = None
-        self.state_history: list[UIState] = []
-
-        self.selected_command: Command | None = None
-
+        
     def add_log_message(self, message: str) -> None:
         """Add a message to the battle log."""
         self.log_messages.append(message)
         if len(self.log_messages) > self.max_log_messages:
             self.log_messages.pop(0)
-
+            
     def clear_log(self) -> None:
         """Clear the battle log."""
         self.log_messages.clear()
-    
-    def setup_command_menu(self, actor: Character) -> None:
-        """Setup the command menu for the current actor."""
-        items = []
-        for command in actor.commands:
-            # Check if command has usable actions
-            enabled = True
-            if command.name == "Magic":
-                enabled = len(command.actions) > 0
-            elif command.name == "Item":
-                enabled = len(self.battle.inventory) > 0
-                
-            items.append(MenuItem(command.name, command, enabled))
-            
-        self.current_menu.set_items(items)
-
-    def setup_action_menu(self, command: Command, actor: Character) -> None:
-        """Setup the action menu for the selected command."""
-        items = []
         
-        if command.name == "Item":
-            # Show items from inventory
-            for item in self.battle.inventory:
-                items.append(MenuItem(item.name, item, True))
-        else:
-            # Show actions from command
-            for action in command.actions:
-                # Check if actor has enough MP
-                enabled = actor.mp >= action.mp_cost
-                mp_text = f" (MP: {action.mp_cost})" if action.mp_cost > 0 else ""
-                text = f"{action.name}{mp_text}"
-                items.append(MenuItem(text, action, enabled))
-                
-        self.current_menu.set_items(items)
-
-    def setup_target_menu(self, action: Action, actor: Character) -> None:
-        """Setup the target menu based on the action's targeting."""
-        items = []
-        
-        # Determine valid targets based on action type
-        if action.targetting in ["Single Enemy", "All Enemies"]:
-            targets = [e for e in self.battle.enemies if e not in self.battle.graveyard]
-        elif action.targetting in ["Single Ally", "All Allies"]:
-            targets = [p for p in self.battle.party if p not in self.battle.graveyard]
-        elif action.targetting == "Self":
-            targets = [actor]
-        else:  # "All"
-            targets = [b for b in self.battle.battlers if b not in self.battle.graveyard]
-            
-        for target in targets:
-            hp_text = f" (HP: {target.hp}/{target.hp_max})"
-            text = f"{target.name}{hp_text}"
-            items.append(MenuItem(text, target, True))
-            
-        self.current_menu.set_items(items)
-    
-    def setup_tie_selection_menu(self, tied_actors: list[Character]):
-        """Setup the tie winner selection menu"""
-        items = []
-        for actor in tied_actors:
-            items.append(MenuItem(actor.name, actor))
-        self.current_menu.set_items(items)
-        print(f"Set up tie menu for {tied_actors}")
-
-    def handle_input(self, event: pygame.event.Event, actor: Character | None = None):
-        """
-        Handle user input for command selection.
-        Returns True when a complete action is selected.
-        """
-        if event.type != pygame.KEYDOWN:
-            return False
-        
-        # Cancel/Back
-        if event.key == pygame.K_ESCAPE or event.key == pygame.K_BACKSPACE:
-            self.state.on_cancel(self, actor, self.selected_command)
-                
-        # Navigation
-        if event.key == pygame.K_UP or event.key == pygame.K_w:
-            print("Running key up")
-            self.state.on_navigate(self, -1)        
-        elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-            print("Running key down")
-            self.state.on_navigate(self, 1)
-
-        # Confirm selection
-        elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-            self.state.on_confirm(self, actor)
-
     def draw_character_status(self, character: Character, rect: pygame.Rect, 
                              is_enemy: bool = False) -> None:
         """Draw a character's status panel."""
@@ -502,6 +461,94 @@ class BattleUI:
         text_surf = self.large_font.render(text, True, WHITE)
         text_rect = text_surf.get_rect(center=indicator_rect.center)
         self.screen.blit(text_surf, text_rect)
+        
+    def setup_command_menu(self, actor: Character) -> None:
+        """Setup the command menu for the current actor."""
+        items = []
+        for command in actor.commands:
+            # Check if command has usable actions
+            enabled = True
+            if command.name == "Magic":
+                enabled = len(command.actions) > 0
+            elif command.name == "Item":
+                enabled = len(self.battle.inventory) > 0
+                
+            items.append(MenuItem(command.name, command, enabled))
+            
+        self.command_menu.set_items(items)
+        
+    def setup_action_menu(self, command: Command, actor: Character) -> None:
+        """Setup the action menu for the selected command."""
+        items = []
+        
+        if command.name == "Item":
+            # Show items from inventory
+            for item in self.battle.inventory:
+                items.append(MenuItem(item.name, item, True))
+        else:
+            # Show actions from command
+            for action in command.actions:
+                # Check if actor has enough MP
+                enabled = actor.mp >= action.mp_cost
+                mp_text = f" (MP: {action.mp_cost})" if action.mp_cost > 0 else ""
+                text = f"{action.name}{mp_text}"
+                items.append(MenuItem(text, action, enabled))
+                
+        self.action_menu.set_items(items)
+        
+    def setup_target_menu(self, action: Action, actor: Character) -> None:
+        """Setup the target menu based on the action's targeting."""
+        items = []
+        
+        # Determine valid targets based on action type
+        if action.targetting in ["Single Enemy", "All Enemies"]:
+            targets = [e for e in self.battle.enemies if e not in self.battle.graveyard]
+        elif action.targetting in ["Single Ally", "All Allies"]:
+            targets = [p for p in self.battle.party if p not in self.battle.graveyard]
+        elif action.targetting == "Self":
+            targets = [actor]
+        else:  # "All"
+            targets = [b for b in self.battle.battlers if b not in self.battle.graveyard]
+            
+        for target in targets:
+            hp_text = f" (HP: {target.hp}/{target.hp_max})"
+            text = f"{target.name}{hp_text}"
+            items.append(MenuItem(text, target, True))
+            
+        self.target_menu.set_items(items)
+        
+    def setup_tie_menu(self, tied_characters: list[Character]) -> None:
+        """Setup the menu for selecting tie winner."""
+        items = []
+        for i, character in enumerate(tied_characters):
+            text = f"{i + 1}. {character.name}"
+            items.append(MenuItem(text, character, True))
+        self.tie_menu.set_items(items)
+
+    def handle_input(self, event: pygame.event.Event, actor: Character):
+        """
+        Handle user input for command selection.
+        Returns True when a complete action is selected.
+        """
+        if event.type != pygame.KEYDOWN:
+            return False
+        
+        print(f"Handling input in state: {self.state}")
+
+        # Cancel/Back
+        if event.key == pygame.K_ESCAPE or event.key == pygame.K_BACKSPACE:
+            self.state.on_cancel(self)
+                
+        # Navigation
+        if event.key == pygame.K_UP or event.key == pygame.K_w:
+            self.state.on_navigate(self, -1)
+                
+        elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+            self.state.on_navigate(self, 1)
+
+        # Confirm selection
+        elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+            self.state.on_confirm(self, actor)    
 
     def draw(self, actor: Character | None = None) -> None:
         """Draw the complete battle UI."""
@@ -515,12 +562,21 @@ class BattleUI:
         self.draw_battle_log()
         
 
+        if isinstance(self.state, SelectingTieWinner):
+            self.tie_menu.draw(self.screen, self.font)
+
         # If in player turn, draw menus
         if actor and actor.is_controllable:
             self.draw_current_turn_indicator(actor)
             
-            if self.current_menu.items:
-                self.current_menu.draw(self.screen, self.font)
+            # Draw appropriate menus based on state
+            self.command_menu.draw(self.screen, self.font)
+            
+            if isinstance(self.state, SelectingAction):
+                self.action_menu.draw(self.screen, self.font)
+                
+            if isinstance(self.state, SelectingTarget):
+                self.target_menu.draw(self.screen, self.font)
                 
         pygame.display.flip()
 

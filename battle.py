@@ -34,7 +34,7 @@ class Waiting(BattleState):
 
         if battle.ready_actors:
             if len(battle.ready_actors) > 1:
-                battle.state = SpeedTie()
+                battle.state = SpeedTie(battle.ready_actors)
             else:
                 battle.state = PrepareActor(battle.ready_actors[0])
             return
@@ -47,26 +47,33 @@ class Waiting(BattleState):
 
 class SpeedTie(BattleState):
     """Handles speed ties among battlers."""
-    def __init__(self):
+    def __init__(self, tied_actors: list[Character]):
         super().__init__()
+        self.tied_actors = tied_actors
     def loop(self, battle: Battle, dt: float) -> None:
-        
+        battle.log_messages.append("Speed tie!")
+
         if all(battler.is_controllable for battler in battle.ready_actors):
-            battle.state = SelectingTieWinner(battle.ready_actors)
+            battle.state = WaitingForTie(battle.ready_actors)
         
         else:
             tie_winner = random.choice(battle.ready_actors)
-            battle.ready_actors = [tie_winner]
-            battle.state = PrepareActor(battle.ready_actors[0])
+            battle.log_messages.append(f"{tie_winner} wins the speed tie!")
+            battle.state = PrepareActor(tie_winner)
 
 
-class SelectingTieWinner(BattleState):
+class WaitingForTie(BattleState):
     def __init__(self, people_in_tie: list[Character]) -> None:
         super().__init__()
         self.people_in_tie = people_in_tie  # Instance attribute
+        self.tie_winner: Character | None = None
 
     def loop(self, battle: Battle, dt: float) -> None:
-        pass
+        # Waits for player input to select tie winner
+        if self.tie_winner:
+            battle.log_messages.append(f"{self.tie_winner} wins the speed tie!"
+                                       )
+            battle.state = PrepareActor(self.tie_winner)
 
 
 class PrepareActor(BattleState):
@@ -76,7 +83,6 @@ class PrepareActor(BattleState):
         self.actor = actor
 
     def loop(self, battle: Battle, dt: float) -> None:
-        
         # Since stat modifiers are applied every turn
         # prevent stacking by resetting at turn start
         self.actor.reset_stats()
@@ -95,23 +101,18 @@ class ControlledTurn(BattleState):
     def __init__(self, actor: Character) -> None:
         super().__init__()
         self.actor = actor
-        # self.action_selected = False
 
-        # These will be set by Game from UI
-        self.selected_action: Action | None = None
-        self.selected_targets: list[Character] = []
+        # These will be set via UI input
+        self.action: Action | None = None
+        self.targets: list[Character] = []
 
     def loop(self, battle: Battle, dt: float) -> None:
         # This state now waits for UI input
-        # The UI system will set action_selected to True when ready
-        # if self.action_selected:
-        #     battle.state = CheckingDeath()
-        
-        if self.selected_action and self.selected_targets:
+        if self.action and self.targets:
             battle.log_messages.extend(
-                self.selected_action.execute(
-                    self.actor, self.selected_targets, battle))
-            battle.state = CheckingDeath()
+                self.action.execute(
+                    self.actor, self.targets, battle))
+            battle.state = CheckingDeath(self.actor)
 
 
 class AITurn(BattleState):
@@ -123,26 +124,29 @@ class AITurn(BattleState):
     def loop(self, battle: Battle, dt: float) -> None:
         battle.log_messages.extend(self.actor.behaviour.execute(
                                     self.actor, battle))
-        battle.state = CheckingDeath()
+        battle.state = CheckingDeath(self.actor)
 
 
 class CheckingDeath(BattleState):
     """Check for any defeated battlers and handle end-of-turn logic."""
-    def __init__(self):
+    def __init__(self, actor: Character):
         super().__init__()
+        self.actor = actor
     def loop(self, battle: Battle, dt: float) -> None:
         if any(battler.hp == 0 for battler in battle.battlers):
-            battle.state = Burying()
+            battle.state = Burying(self.actor)
         else:
-            battle.state = EndingTurn()
+            battle.state = EndingTurn(self.actor)
 
 
 class EndingTurn(BattleState):
     """End the current actor's turn and prepare for the next."""
-    def __init__(self):
+    def __init__(self, actor: Character):
         super().__init__()
+        self.actor = actor
     def loop(self, battle: Battle, dt: float) -> None:
-        actor = battle.ready_actors.pop(0)
+        actor = self.actor
+        battle.ready_actors.remove(actor)
         actor.atb -= battle.READY_THRESHOLD
         for status in actor.statuses:
             status.reduce_duration()
@@ -153,15 +157,16 @@ class EndingTurn(BattleState):
 
 class Burying(BattleState):
     """Handle defeated battlers and check for battle outcome."""
-    def __init__(self):
+    def __init__(self, actor: Character):
         super().__init__()
+        self.actor = actor
     def loop(self, battle: Battle, dt: float) -> None:
         for battler in battle.battlers:
             if battler.hp == 0:
                 battler.atb = 0
                 dying_battler_index = battle.battlers.index(battler)
         battle.graveyard.append(battle.battlers.pop(dying_battler_index))
-        battle.state = EndingTurn()
+        battle.state = EndingTurn(self.actor)
 
         if all(battler in battle.graveyard for battler in battle.party):
             battle.state = Loss()
@@ -224,9 +229,8 @@ class Battle:
     def loop(self, dt: float) -> None:
         """Update the battle state."""
         
-        # if self.state != self.prev_state:
-        #     print(f"Current State: {self.state}")
-        #     self.prev_state = self.state
+        if self.state != self.prev_state:
+            self.prev_state = self.state
         
         self.state.loop(self, dt)
         
