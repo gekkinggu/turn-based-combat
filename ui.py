@@ -337,6 +337,7 @@ class BattleUI:
         for actor in tied_actors:
             items.append(MenuItem(actor.name, actor))
         self.current_menu.set_items(items)
+        self.current_menu.title = "Select Tie Winner"
         print(f"Set up tie menu for {tied_actors}")
 
     def handle_input(self, event: pygame.event.Event, actor: Character | None = None):
@@ -518,7 +519,6 @@ class BattleUI:
         self.draw_battle_log()
         
         if isinstance(self.state, SelectingTieWinner):
-            print("Drawing...")
             self.current_menu.draw(self.screen, self.font)
 
         # If in player turn, draw menus
