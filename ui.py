@@ -68,6 +68,8 @@ class SelectingCommand(UIState):
             else:
                 ui.setup_action_menu(command, actor)
                 ui.state = SelectingAction()
+    def on_cancel(self, ui: BattleUI, actor: Character, command: Command):
+        pass  # No previous state to go back to
 
 
 class SelectingAction(UIState):
@@ -285,6 +287,7 @@ class BattleUI:
             items.append(MenuItem(command.name, command, enabled))
             
         self.current_menu.set_items(items)
+        self.current_menu.title = f"{actor.name}'s Command"
 
     def setup_action_menu(self, command: Command, actor: Character) -> None:
         """Setup the action menu for the selected command."""
@@ -304,6 +307,7 @@ class BattleUI:
                 items.append(MenuItem(text, action, enabled))
                 
         self.current_menu.set_items(items)
+        self.current_menu.title = f"{command.name} Actions"
 
     def setup_target_menu(self, action: Action, actor: Character) -> None:
         """Setup the target menu based on the action's targeting."""
@@ -325,6 +329,7 @@ class BattleUI:
             items.append(MenuItem(text, target, True))
             
         self.current_menu.set_items(items)
+        self.current_menu.title = "Select Target"
     
     def setup_tie_selection_menu(self, tied_actors: list[Character]):
         """Setup the tie winner selection menu"""
@@ -348,10 +353,8 @@ class BattleUI:
                 
         # Navigation
         if event.key == pygame.K_UP or event.key == pygame.K_w:
-            print("Running key up")
             self.state.on_navigate(self, -1)        
         elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-            print("Running key down")
             self.state.on_navigate(self, 1)
 
         # Confirm selection
@@ -514,6 +517,9 @@ class BattleUI:
         # Draw battle log
         self.draw_battle_log()
         
+        if isinstance(self.state, SelectingTieWinner):
+            print("Drawing...")
+            self.current_menu.draw(self.screen, self.font)
 
         # If in player turn, draw menus
         if actor and actor.is_controllable:

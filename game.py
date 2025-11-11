@@ -81,8 +81,7 @@ class Game:
                 tie_winner = self.battle_ui.state.tie_winner
                 if tie_winner:
                     self.battle.state.tie_winner = tie_winner
-
-                                     
+                                   
     def draw_battle(self) -> None:
         """Draw the battle UI."""
         if not self.battle or not self.battle_ui:
@@ -134,9 +133,6 @@ def main():
         if game.in_battle:
             game.update_battle(dt)
             game.draw_battle()
-
-            if game.battle_ui.prev_state != game.battle_ui.state:
-                game.battle_ui.prev_state = game.battle_ui.state
 
         else:
             # Battle ended - show results

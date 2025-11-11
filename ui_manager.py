@@ -25,7 +25,7 @@ class UIManager:
         
         elif isinstance(self.battle.state, SpeedTie):
             self.ui.setup_tie_selection_menu(self.battle.state.tied_actors)
-            self.ui.state = SelectingTieWinner
+            self.ui.state = SelectingTieWinner()
         
         if len(self.ui.state_history) > 3:
             self.ui.state_history.pop(3)
@@ -33,3 +33,7 @@ class UIManager:
         if self.ui.state != self.ui.prev_state:
             self.ui.state_history.insert(0, self.ui.state)
             self.ui.prev_state = self.ui.state
+            print(f"UI State changed to: {self.ui.state}")
+        
+        # if not isinstance(self.ui.state, SelectingTieWinner):
+        #     print("Not yet")

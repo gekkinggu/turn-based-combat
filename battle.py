@@ -231,6 +231,7 @@ class Battle:
         
         if self.state != self.prev_state:
             self.prev_state = self.state
+            print(f"Battle State changed to: {self.state}")
         
         self.state.loop(self, dt)
         
