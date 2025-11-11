@@ -9,11 +9,12 @@ from __future__ import annotations
 import csv
 from typing import TYPE_CHECKING
 
-from action_core import Command, Action
+from action_core import Command, Action, Status
+from item import Inventory
 from behaviour import Behaviour
 
 if TYPE_CHECKING:
-    from action_core import Status
+    pass
 
 class Character:
     """Character class representing a game character."""
@@ -26,6 +27,11 @@ class Character:
         self.is_controllable = True
         self.behaviour = Behaviour()
         self.basic_attack = Action("Attack")
+        
+        # The actual inventory accessed by the battle code
+        self.inventory: Inventory
+        # For enemies mainly
+        self.personal_bag: Inventory = Inventory()
 
         # For annotations
         self.hp: int

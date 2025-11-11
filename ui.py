@@ -277,14 +277,7 @@ class BattleUI:
         """Setup the command menu for the current actor."""
         items = []
         for command in actor.commands:
-            # Check if command has usable actions
-            enabled = True
-            if command.name == "Magic":
-                enabled = len(command.actions) > 0
-            elif command.name == "Item":
-                enabled = len(self.battle.inventory) > 0
-                
-            items.append(MenuItem(command.name, command, enabled))
+            items.append(MenuItem(command.name, command))
             
         self.current_menu.set_items(items)
         self.current_menu.title = f"{actor.name}'s Command"
@@ -293,18 +286,12 @@ class BattleUI:
         """Setup the action menu for the selected command."""
         items = []
         
-        if command.name == "Item":
-            # Show items from inventory
-            for item in self.battle.inventory:
-                items.append(MenuItem(item.name, item, True))
-        else:
-            # Show actions from command
-            for action in command.actions:
-                # Check if actor has enough MP
-                enabled = actor.mp >= action.mp_cost
-                mp_text = f" (MP: {action.mp_cost})" if action.mp_cost > 0 else ""
-                text = f"{action.name}{mp_text}"
-                items.append(MenuItem(text, action, enabled))
+        for action in command.actions:
+            # Check if actor has enough MP
+            enabled = actor.mp >= action.mp_cost
+            mp_text = f" (MP: {action.mp_cost})" if action.mp_cost > 0 else ""
+            text = f"{action.name}{mp_text}"
+            items.append(MenuItem(text, action, enabled))
                 
         self.current_menu.set_items(items)
         self.current_menu.title = f"{command.name} Actions"

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from battle import Battle, ControlledTurn, WaitingForTie, Victory
 from battle import Loss
 from character import Character, Enemy
+from item import Inventory
 from ui import BattleUI, SelectionCompleted, SelectingTieWinner
 from ui import SCREEN_WIDTH, SCREEN_HEIGHT
 from ui_manager import UIManager
@@ -31,10 +32,10 @@ class Game:
         self.ui_manager: UIManager | None = None
         self.in_battle = False
         
-    def start_battle(self, party: list[Character], enemies: list[Character]
-                     ) -> None:
+    def start_battle(self, party: list[Character], enemies: list[Character],
+                     inventory: Inventory) -> None:
         """Initialize and start a battle."""
-        self.battle = Battle(party, enemies)
+        self.battle = Battle(party, enemies, inventory)
         self.battle_ui = BattleUI(self.screen, self.battle)
         self.ui_manager = UIManager(self.battle_ui, self.battle)
         self.in_battle = True
@@ -95,6 +96,13 @@ class Game:
         self.battle_ui.draw(current_actor)
 
 
+class PlayerData:
+    """Class to hold player data such as inventory."""
+    def __init__(self) -> None:
+        from item import Inventory, my_inventory
+        self.inventory: Inventory = my_inventory
+player_data = PlayerData()
+
 def main():
     """Main game loop."""
     pygame.init()
@@ -109,7 +117,8 @@ def main():
     enemy1 = Enemy("Goblin", 40)
     enemy2 = Enemy("Orc", 45)
     
-    game.start_battle(party=[warrior, mage], enemies=[enemy1, enemy2])
+    game.start_battle(party=[warrior, mage], enemies=[enemy1, enemy2],
+                      inventory=player_data.inventory)
     
     running = True
     while running:

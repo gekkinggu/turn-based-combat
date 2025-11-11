@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from character import Character
-    from item import Item
+    from item import Inventory
     from action_core import Action
 
 
@@ -111,7 +111,7 @@ class ControlledTurn(BattleState):
         if self.action and self.targets:
             battle.log_messages.extend(
                 self.action.execute(
-                    self.actor, self.targets, battle))
+                    self.actor, self.targets))
             battle.state = CheckingDeath(self.actor)
 
 
@@ -193,14 +193,14 @@ class Loss(BattleState):
 class Battle:
     """Battle class."""
 
-    inventory: list[Item] = []
     READY_THRESHOLD = 296
 
     def __init__(self, party: list[Character], enemies: list[Character],
-                 can_run = True) -> None:
+                 inventory: Inventory, can_run = True) -> None:
         
         self.party = party
         self.enemies = enemies
+        self.inventory = inventory
         self.can_run = can_run
 
         self.battlers = self.party + self.enemies
@@ -220,6 +220,12 @@ class Battle:
         for battler in self.battlers:
             battler.prepare_for_battle()
             battler.atb = random.randint(0,15)
+        
+        for battler in self.party:
+            battler.inventory = self.inventory
+        
+        for battler in self.enemies:
+            battler.inventory = battler.personal_bag
     
     def conclude(self) -> None:
         """Conclude the battle."""

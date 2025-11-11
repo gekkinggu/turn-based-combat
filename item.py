@@ -25,4 +25,11 @@ class Item:
         return f"{self.name}: {self.quantity}"
 
 
-inventory = [Item("Potion", Item_Action("Potion"), 5)]
+class Inventory:
+    """Inventory class representing a collection of items."""
+
+    def __init__(self) -> None:
+        self.items: list[Item] = []
+
+my_inventory = Inventory()
+my_inventory.items = [Item("Potion", Item_Action("Potion"), 5)]

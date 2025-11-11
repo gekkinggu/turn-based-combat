@@ -168,9 +168,6 @@ class Action:
 
         # For annotations
         self.actor: Character
-        self.battle: Battle
-        self.party: list[Character]
-        self.enemies: list[Character]
         self.targets: list[Character]
 
         self.define()
@@ -214,18 +211,14 @@ class Action:
             if not name_found:
                print(f"Action {self.name} not defined")
 
-    def execute(self, actor: Character, targets: list[Character],
-                battle: Battle) -> list[str]:
+    def execute(self, actor: Character, targets: list[Character]
+                ) -> list[str]:
         """Execute the action in the context of a battle.
         Returns log messages generated during execution."""
         self.log_messages = [f"{actor} used {self}!"]
 
         self.actor = actor
         self.targets = targets
-
-        self.battle = battle
-        self.party = battle.party
-        self.enemies = battle.enemies
 
         self.modifiers = []
 
@@ -248,7 +241,7 @@ class Action:
                 print("Error: Action Type not found")
         
         self.statusing()
-        self.apply_costs(battle.inventory)
+        self.apply_costs(actor.inventory)
 
         return self.log_messages
 

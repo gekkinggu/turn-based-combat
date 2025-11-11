@@ -44,5 +44,4 @@ class Behaviour:
         targets = [target for target in opposing if target.hp > 0]
         target = random.choice(targets)
         
-        self.log_messages.extend(actor.basic_attack.execute(actor, [target],
-                                                            battle))
+        self.log_messages.extend(actor.basic_attack.execute(actor, [target]))
