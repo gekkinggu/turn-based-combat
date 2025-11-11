@@ -43,7 +43,8 @@ class Game:
         
     def update_battle(self, dt: float) -> None:
         """Update the battle state."""
-        if not self.battle or not self.in_battle:
+
+        if not self.battle or not self.battle_ui or not self.ui_manager:
             return
             
         # Update battle logic
@@ -69,15 +70,17 @@ class Game:
         # Only handle input during ControlledTurn state
         if isinstance(self.battle.state, ControlledTurn):
             actor = self.battle.state.actor
+            if not self.battle_ui.current_actor:
+                self.battle_ui.current_actor = actor
             
-            self.battle_ui.handle_input(event, actor)
+            self.battle_ui.handle_input(event)
             if isinstance(self.battle_ui.state, SelectionCompleted):
                 self.battle.state.action = self.battle_ui.state.action
                 self.battle.state.targets = self.battle_ui.state.targets
                 
         # Handle tie winner selection
         elif isinstance(self.battle.state, WaitingForTie):
-            self.battle_ui.handle_input(event, actor=None)
+            self.battle_ui.handle_input(event)
             if isinstance(self.battle_ui.state, SelectingTieWinner):
                 tie_winner = self.battle_ui.state.tie_winner
                 if tie_winner:

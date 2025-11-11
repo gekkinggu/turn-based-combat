@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pygame
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from character import Character
@@ -36,31 +36,32 @@ MENU_ITEM_HEIGHT = 40
 
 class UIState:
     """Base class for UI states."""
-    def __init__(self):
+    def __init__(self) -> None:
         pass
     def __repr__(self) -> str:
         return self.__class__.__name__
-    def on_cancel(self, ui: BattleUI, actor: Character, command: Command):
-        ui.state = ui.state_history[1]
-        if isinstance(ui.state, SelectingCommand):
-            ui.setup_command_menu(actor)
-        elif isinstance(ui.state, SelectingAction):
-            ui.setup_action_menu(command, actor)
-    def on_confirm(self):
+    def on_enter(self, ui: BattleUI) -> None:
+        """Called when the state becomes active; default no-op."""
         pass
-    def on_navigate(self, ui: BattleUI, direction: int):
+    def on_cancel(self, ui: BattleUI) -> None:
+        """Handle cancel/back; default no-op."""
+        pass
+    def on_confirm(self, ui: BattleUI) -> None:
+        """Handle confirm/accept; default no-op."""
+        pass
+    def on_navigate(self, ui: BattleUI, direction: int) -> None:
         ui.current_menu.move_selection(direction)
 
 
 class SelectingCommand(UIState):
     """State for selecting a command."""
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-    def on_confirm(self, ui: BattleUI, actor: Character):
+    def on_confirm(self, ui: BattleUI) -> None:
         selected_item = ui.current_menu.get_selected_item()
         if selected_item and selected_item.enabled:
             command: Command = selected_item.data
-            ui.selected_command = command
+            actor = ui.require_actor()
             if command.is_single:
                 action = command.actions[0]
                 ui.setup_target_menu(action, actor)
@@ -68,28 +69,29 @@ class SelectingCommand(UIState):
             else:
                 ui.setup_action_menu(command, actor)
                 ui.state = SelectingAction()
-    def on_cancel(self, ui: BattleUI, actor: Character, command: Command):
+    def on_cancel(self, ui: BattleUI) -> None:
         pass  # No previous state to go back to
 
 
 class SelectingAction(UIState):
     """State for selecting an action."""
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-    def on_confirm(self, ui: BattleUI, actor: Character):
+    def on_confirm(self, ui: BattleUI) -> None:
         selected_item = ui.current_menu.get_selected_item()
         if selected_item and selected_item.enabled:
             action: Action = selected_item.data
+            actor = ui.require_actor()
             ui.setup_target_menu(action, actor)
             ui.state = SelectingTarget(action)
 
 
 class SelectingTarget(UIState):
     """State for selecting a target."""
-    def __init__(self, action: Action):
+    def __init__(self, action: Action) -> None:
         super().__init__()
         self.action = action
-    def on_confirm(self, ui: BattleUI, actor: Character):
+    def on_confirm(self, ui: BattleUI) -> None:
         selected_item = ui.current_menu.get_selected_item()
         if selected_item and selected_item.enabled:
             target: Character = selected_item.data
@@ -100,21 +102,21 @@ class SelectionCompleted(UIState):
     """State indicating selection is completed."""
     def __init__(self,
                  action: Action,
-                 targets: list[Character]):
+                 targets: list[Character]) -> None:
         super().__init__()
         self.action = action
         self.targets = targets
 
 
 class SelectingTieWinner(UIState):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.tie_winner: Character | None = None
-    def on_confirm(self, ui: BattleUI, actor: Character):
+    def on_confirm(self, ui: BattleUI) -> None:
         selected_item = ui.current_menu.get_selected_item()
         if selected_item and selected_item.enabled:
             self.tie_winner = selected_item.data
-    def on_navigate(self, ui: BattleUI, direction: int):
+    def on_navigate(self, ui: BattleUI, direction: int) -> None:
         ui.current_menu.move_selection(direction)
 
 
@@ -153,7 +155,7 @@ class Button:
 class MenuItem:
     """A single item in a menu."""
     
-    def __init__(self, text: str, data: any = None, enabled: bool = True):
+    def __init__(self, text: str, data: Any = None, enabled: bool = True):
         self.text = text
         self.data = data  # Can store Command, Action, Character, etc.
         self.enabled = enabled
@@ -237,9 +239,6 @@ class Menu:
             text_surf = font.render(item.text, True, color)
             surface.blit(text_surf, (item_rect.x + 5, item_rect.y + 10))
 
-        """Get the currently selected menu item."""
-        return self.items[self.selected_index]
-
 
 class BattleUI:
     """Manages the battle user interface."""
@@ -261,7 +260,12 @@ class BattleUI:
         self.prev_state: UIState | None = None
         self.state_history: list[UIState] = []
 
-        self.selected_command: Command | None = None
+        self.current_actor: Character | None = None
+
+    def require_actor(self) -> Character:
+        """Get the active actor, raising if not set. Helps mypy infer non-None."""
+        assert self.current_actor is not None, "UI has no active actor set"
+        return self.current_actor
 
     def add_log_message(self, message: str) -> None:
         """Add a message to the battle log."""
@@ -337,7 +341,7 @@ class BattleUI:
         
         # Cancel/Back
         if event.key == pygame.K_ESCAPE or event.key == pygame.K_BACKSPACE:
-            self.state.on_cancel(self, actor, self.selected_command)
+            self.state.on_cancel(self)
                 
         # Navigation
         if event.key == pygame.K_UP or event.key == pygame.K_w:
@@ -347,7 +351,7 @@ class BattleUI:
 
         # Confirm selection
         elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
-            self.state.on_confirm(self, actor)
+            self.state.on_confirm(self)
 
     def draw_character_status(self, character: Character, rect: pygame.Rect, 
                              is_enemy: bool = False) -> None:

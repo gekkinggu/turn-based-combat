@@ -6,6 +6,9 @@ Inventory should belong to each actor rather than battle. In preparation,
     which belongs to the player/savefile. Enemy inventories can be set when
     defining. Also change the rest of the code to handle inventory as an object
     rather than list.
+mypy exposed a problem with handle_input may or may not needing an actor
+    argument. Refactored this, ended up breaking menu cancelling.
 
 TODO
-
+Make sure of how status effects works. Including costing.
+Fix menu cancelling.

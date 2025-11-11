@@ -11,8 +11,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from character import Character
-    from battle import Battle
-    from item import Item
+    from item import Inventory
 
 
 class Command:
@@ -343,7 +342,7 @@ class Action:
         
         return None
 
-    def apply_costs(self, inventory: list[Item]) -> str | None:
+    def apply_costs(self, inventory: Inventory) -> str | None:
         """Apply the costs of the action to the actor and inventory.
         Inventory isn't optional because only execute calls this function."""
 
@@ -357,16 +356,16 @@ class Action:
             self.actor.mp -= self.mp_cost
         
         elif isinstance(self, Item_Action):
-
-            used_item = next((item for item in inventory
-                              if item.name == self.name), None)
+            pass
+            # used_item = next((item for item in inventory
+            #                   if item.name == self.name), None)
             
-            if not used_item:
-                return f"No {self.name} in inventory"
+            # if not used_item:
+            #     return f"No {self.name} in inventory"
             
-            used_item.quantity -= 1
-            if used_item.quantity == 0:
-                inventory.remove(used_item)
+            # used_item.quantity -= 1
+            # if used_item.quantity == 0:
+            #     inventory.remove(used_item)
         
         elif isinstance(self, Limit):
             self.actor.limit = 0
