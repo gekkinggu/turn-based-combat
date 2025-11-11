@@ -44,8 +44,7 @@ class UIState:
         """Called when the state becomes active; default no-op."""
         pass
     def on_cancel(self, ui: BattleUI) -> None:
-        """Handle cancel/back; default no-op."""
-        pass
+        ui.pop_state()  # Go back to command menu
     def on_confirm(self, ui: BattleUI) -> None:
         """Handle confirm/accept; default no-op."""
         pass
@@ -65,12 +64,10 @@ class SelectingCommand(UIState):
             if command.is_single:
                 action = command.actions[0]
                 ui.setup_target_menu(action, actor)
-                ui.state = SelectingTarget(action)
+                ui.push_state(SelectingTarget(action))
             else:
                 ui.setup_action_menu(command, actor)
-                ui.state = SelectingAction()
-    def on_cancel(self, ui: BattleUI) -> None:
-        pass  # No previous state to go back to
+                ui.push_state(SelectingAction())
 
 
 class SelectingAction(UIState):
@@ -83,7 +80,7 @@ class SelectingAction(UIState):
             action: Action = selected_item.data
             actor = ui.require_actor()
             ui.setup_target_menu(action, actor)
-            ui.state = SelectingTarget(action)
+            ui.push_state(SelectingTarget(action))
 
 
 class SelectingTarget(UIState):
@@ -254,11 +251,18 @@ class BattleUI:
         self.log_messages: list[str] = []
         self.max_log_messages = 5
 
-        self.current_menu = Menu(pygame.Rect(50, 400, 300, 250), "Empty")
+        # Menu storage - each menu type is stored separately
+        self.command_menu = Menu(pygame.Rect(50, 400, 300, 250), "Command")
+        self.action_menu = Menu(pygame.Rect(50, 400, 300, 250), "Actions")
+        self.target_menu = Menu(pygame.Rect(50, 400, 300, 250), "Target")
+        self.tie_menu = Menu(pygame.Rect(50, 400, 300, 250), "Tie")
+        
+        # Reference to the currently active menu
+        self.current_menu: Menu = self.command_menu
 
+        # State management with history stack
         self.state: UIState = UIState()
-        self.prev_state: UIState | None = None
-        self.state_history: list[UIState] = []
+        self.state_history: list[UIState] = []  # Stack of previous states
 
         self.current_actor: Character | None = None
 
@@ -266,6 +270,32 @@ class BattleUI:
         """Get the active actor, raising if not set. Helps mypy infer non-None."""
         assert self.current_actor is not None, "UI has no active actor set"
         return self.current_actor
+
+    def push_state(self, new_state: UIState) -> None:
+        """Push current state to history and transition to new state."""
+        self.state_history.append(self.state)
+        self.state = new_state
+        self.state.on_enter(self)
+        print(f"After push: {self.state_history}")
+
+    def pop_state(self) -> None:
+        """Pop previous state from history and restore appropriate menu."""
+        if not self.state_history:
+            print("Cannot pop state: history is empty")
+            return
+        
+        previous_state = self.state_history.pop()
+        self.state = previous_state
+        
+        # Restore the appropriate menu based on the state we're returning to
+        if isinstance(previous_state, SelectingCommand):
+            self.current_menu = self.command_menu
+        elif isinstance(previous_state, SelectingAction):
+            self.current_menu = self.action_menu
+        elif isinstance(previous_state, SelectingTarget):
+            self.current_menu = self.target_menu
+        
+        print(f"After pop: {self.state_history}")
 
     def add_log_message(self, message: str) -> None:
         """Add a message to the battle log."""
@@ -283,8 +313,9 @@ class BattleUI:
         for command in actor.commands:
             items.append(MenuItem(command.name, command))
             
-        self.current_menu.set_items(items)
-        self.current_menu.title = f"{actor.name}'s Command"
+        self.command_menu.set_items(items)
+        self.command_menu.title = f"{actor.name}'s Command"
+        self.current_menu = self.command_menu
 
     def setup_action_menu(self, command: Command, actor: Character) -> None:
         """Setup the action menu for the selected command."""
@@ -297,8 +328,9 @@ class BattleUI:
             text = f"{action.name}{mp_text}"
             items.append(MenuItem(text, action, enabled))
                 
-        self.current_menu.set_items(items)
-        self.current_menu.title = f"{command.name} Actions"
+        self.action_menu.set_items(items)
+        self.action_menu.title = f"{command.name} Actions"
+        self.current_menu = self.action_menu
 
     def setup_target_menu(self, action: Action, actor: Character) -> None:
         """Setup the target menu based on the action's targeting."""
@@ -319,17 +351,18 @@ class BattleUI:
             text = f"{target.name}{hp_text}"
             items.append(MenuItem(text, target, True))
             
-        self.current_menu.set_items(items)
-        self.current_menu.title = "Select Target"
+        self.target_menu.set_items(items)
+        self.target_menu.title = "Select Target"
+        self.current_menu = self.target_menu
     
     def setup_tie_selection_menu(self, tied_actors: list[Character]):
         """Setup the tie winner selection menu"""
         items = []
         for actor in tied_actors:
             items.append(MenuItem(actor.name, actor))
-        self.current_menu.set_items(items)
-        self.current_menu.title = "Select Tie Winner"
-        print(f"Set up tie menu for {tied_actors}")
+        self.tie_menu.set_items(items)
+        self.tie_menu.title = "Select Tie Winner"
+        self.current_menu = self.tie_menu
 
     def handle_input(self, event: pygame.event.Event, actor: Character | None = None):
         """

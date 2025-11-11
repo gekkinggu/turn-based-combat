@@ -11,4 +11,5 @@ mypy exposed a problem with handle_input may or may not needing an actor
 
 TODO
 Make sure of how status effects works. Including costing.
-Fix menu cancelling.
+Fix menu cancelling. UI should store all the menus it has created and current
+    menu just refers to one of them.

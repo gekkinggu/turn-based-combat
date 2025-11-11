@@ -26,19 +26,12 @@ class UIManager:
             self._on_battle_state_enter(self.battle.state)
             self.last_battle_state = self.battle.state
         
-        # Track UI state changes
-        if self.ui.state != self.ui.prev_state:
-            self.ui.state_history.insert(0, self.ui.state)
-            if len(self.ui.state_history) > 3:
-                self.ui.state_history.pop()
-            self.ui.prev_state = self.ui.state
-            print(f"UI State changed to: {self.ui.state}")
-        
     def _on_battle_state_enter(self, state) -> None:
         """Called once when battle state changes - this is your 'run once' hook"""
         if isinstance(state, ControlledTurn):
             self.ui.setup_command_menu(state.actor)
             self.ui.state = SelectingCommand()
+            self.ui.state_history.clear()  # Clear history when starting new turn
         
         elif isinstance(state, WaitingForTie):
             self.ui.setup_tie_selection_menu(state.people_in_tie)
